@@ -21,12 +21,17 @@ var kf = new KalmanFilter({
   Q: 10
 });
 kf.filter(2);
+///////////////////////////////////////////////
+
+
 
 var movement = null;
 var size = 0;
-var oldDistances = createArray(3,10);
-var toFilterDataset = createArray(3,10);
+var oldDistances = createArray(3,15);
+var toFilterDataset = createArray(3,15);
 var oldDistance;
+var prevDroneMovement = null;
+var move = false;
 
 // rotation
 var droneLeft = false;
@@ -39,6 +44,8 @@ app.get('/', function(req, res) {
 
 io.on('connection', function(socket) {
   console.log('new connection');
+
+  /////////////////////////////////////////////
   socket.on('userchange', function(u) {
     console.log(u);
     console.log(oldDistances);
@@ -47,12 +54,24 @@ io.on('connection', function(socket) {
     //console.log(p);
       arrayFunction(p.user, p.value);
   });
+  socket.on('move', function(mo) {
+    console.log(mo);
+    move = mo.move;
+  });
+  socket.on('launch', function(l) {
+    io.sockets.emit('startDrone', {startDrone: true});
+  });
+  socket.on('emer', function(e){
+    io.sockets.emit('emergency', {emergency: true});
+  });
 });
 
 server.listen(serverPort, function() {
   console.log('server up and running at %s port', serverPort);
 });
 
+
+/////////////////////////////////////////////////
   function arrayFunction(userID, newValue) {
   // everytime you get in this function, shift the old array of userID to make place for the new value
      toFilterDataset[userID].shift();
@@ -63,26 +82,29 @@ server.listen(serverPort, function() {
       return kf.filter(v,1);
     });
   // when it's not a duplicate value (because it's impossible to receive duplicates with floats, unless somethings wrong)
-    if (oldDistance != newValue) {
+    if (oldDistance != newValue && move) {
       console.log(userID);
       //when the drone is close to both users, shutdown, cuz it should be impossible
 
       //when the drone is closer than or equal to 1 to user1 change bool
-      if (oldDistances[userID].last() <= 1.5 && userID == 1) {
+      if (oldDistances[userID].last() <= 1.4 && userID == 1) {
         movement = false;
         io.sockets.emit('droneMovement', {
           movement: movement
         });
         console.log(movement);
-
       }
       //when the drone is closer than or equal to 1 to user2 change bool
-      else if (oldDistances[userID].last() <= 1 && userID == 2) {
+      else if (oldDistances[userID].last() <= 1.4 && userID == 2) {
         movement = true;
         io.sockets.emit('droneMovement', {
           movement: movement
         });
         console.log(movement);
+
+      } else if(oldDistances[userID].last() >= 5) {
+        console.log('TOO FAR');
+        io.sockets.emit('emergency', {emergency: true});
 
       } else {
         io.sockets.emit('droneMovement',{
@@ -91,9 +113,16 @@ server.listen(serverPort, function() {
         console.log(movement);
 
       }
+    } else {
+      io.sockets.emit('bubble', {bubble: true});
     }
+console.log(oldDistances[userID]);
       oldDistance = newValue;
+      // DO SOMETHING WITH PREVMOVEMENT IF THIS VALUE CHANGES
 }
+
+
+////////////////////////////////////////////////////
 // add new last() method:
 if (!Array.prototype.last){
     Array.prototype.last = function(){
