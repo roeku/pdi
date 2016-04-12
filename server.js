@@ -22,7 +22,7 @@ var kf = new KalmanFilter({
 kf.filter(2);
 ///////////////////////////////////////////////
 
-
+var tRarr = [];
 
 var movement = null;
 var size = 0;
@@ -69,8 +69,13 @@ io.on('connection', function(socket) {
         });
     });
     socket.on('beaconPositions', function(b) {
-        var tArr = b.arr;
-        console.log(tArr[0]);
+        var tArr = b.arr[0];
+        var max = Object.keys(tArr).reduce(function(a, b) {
+            return tArr[a] > tArr[b] ? a : b
+        });
+
+        console.log(Object.keys(tArr[max]) + JSON.stringify(tArr));
+
     });
 });
 
