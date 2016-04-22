@@ -25,7 +25,7 @@ kf.filter(2);
 var tRarr = [];
 
 var movement = null;
-var bubbleRange = 1;
+var bubbleRange = 0.75;
 var size = 0;
 var oldDistances = createArray(3, 15);
 var toFilterDataset = createArray(3, 15);
@@ -41,6 +41,7 @@ var g1X = 0;
 var g1Y = 0;
 var prevX = 0;
 var g2X = 0;
+var g2Y = 0;
 
 var droneLeft1 = false;
 var droneRight1 = false;
@@ -124,42 +125,56 @@ function arrayFunction(userID, newValue) {
         return kf.filter(v, 1);
     });
     // when it's not a duplicate value (because it's impossible to receive duplicates with floats, unless somethings wrong)
-    if (oldDistance != newValue && move) {
+    if (oldDistance != newValue) {
         //console.log(userID);
         //when the drone is close to both users, shutdown, cuz it should be impossible
         //console.log(gX + " " + gY);
         //when the drone is closer than or equal to 1 to user1 change bool
         if (oldDistances[1].last() <= bubbleRange && oldDistances[1].last() < oldDistances[2].last()) {
+            console.log('movement 1: ' + movement);
+
             if (movement == "backward") {
                 move = false;
-                console.log("BACKWARD - 1");
+                //console.log("BACKWARD - 1");
+
                 //console.log(movement);
             } else {
-                console.log("FORWARD - 1");
+                //  console.log("FORWARD - 2");
                 //move = false;
             }
-            console.log('FORWARD EMIT');
+
+            //  console.log('FORWARD EMIT');
             movement = "forward";
-            io.sockets.emit('droneMovement', {
-                movement: movement,
-                value: newValue
-            });
+            if (move) {
+                io.sockets.emit('droneMovement', {
+                    movement: movement,
+                    value: newValue
+                });
+            } else {
+                direction(userID, g1X, g1Y);
+                //console.log("g1X: " + g1X + " g2Y: " + g1Y + " userID: " + userID);
+            }
             //console.log(movement);
         }
         //when the drone is closer than or equal to 1 to user2 change bool
         else if (oldDistances[2].last() <= bubbleRange && oldDistances[1].last() > oldDistances[2].last()) {
+            console.log('movement 2: ' + movement);
             if (movement == "forward") {
                 move = false;
-                console.log("FORWARD - 2");
+                //console.log("FORWARD - 1");
             } else {
-                console.log('BACKWARD - 2');
+                //console.log('BACKWARD - 2');
                 //move = false;
             }
             movement = "backward";
-            io.sockets.emit('droneMovement', {
-                movement: movement,
-                value: newValue
-            });
+            if (move) {
+                io.sockets.emit('droneMovement', {
+                    movement: movement,
+                    value: newValue
+                });
+            } else {
+                direction(userID, g2X, g2Y);
+            }
             //console.log(movement);
 
         } else {
@@ -171,10 +186,9 @@ function arrayFunction(userID, newValue) {
 
         }
     } else if (!move && prevMovement != "rotation") {
-        direction(userID, g1X, g1Y);
         //console.log('ROTATION');
     } else {
-        movement = "same";
+        movement = movement;
     }
     //  console.log(userID + ": " + oldDistances[userID].last() + " - " + movement);
     //console.log("1: " + g1X + " 2: " + g2X)
@@ -185,54 +199,34 @@ function arrayFunction(userID, newValue) {
 }
 ////////////////////////////////////////////////////
 function direction(userID, x, y) {
-    movement = "rotation";
-    if (userID == 1) {
-        if (x < 60) {
-            console.log('ROTATE ' + x);
-            io.sockets.emit('droneMovement', {
-                movement: movement,
-                rotateDirection: "left",
-                rotateValue: 3
-            });
-            //move = true;
-        } else if (x > 150) {
-            console.log('ROTATE ' + x);
+    //movement = "rotation";
+    console.log("x: " + x + " y: " + y + " userID: " + userID);
 
-            io.sockets.emit('droneMovement', {
-                movement: movement,
-                rotateDirection: "right",
-                rotateValue: 3
-            });
-            //move = true;
-        } else if (y < 60) {
-            move = true;
-            console.log(y + " MOVE")
-        }
-    } else {
-        if (x < 60) {
-            console.log('ROTATE ' + x);
-            io.sockets.emit('droneMovement', {
-                movement: movement,
-                rotateDirection: "left",
-                rotateValue: 3
-            });
-            //move = true;
-        } else if (x > 150) {
-            console.log('ROTATE ' + x);
+    if (x < 60) {
+        console.log('ROTATE ' + x + " - " + userID);
+        io.sockets.emit('droneMovement', {
+            movement: "rotation",
+            rotateDirection: "left",
+            rotateValue: 3
+        });
+        //move = true;
+    } else if (x > 150) {
+        console.log('ROTATE ' + x + " - " + userID);
 
-            io.sockets.emit('droneMovement', {
-                movement: movement,
-                rotateDirection: "right",
-                rotateValue: 3
-            });
-            //move = true;
-        } else if (y < 60) {
-            move = true;
-            console.log(y + " MOVE")
-        }
+        io.sockets.emit('droneMovement', {
+            movement: "rotation",
+            rotateDirection: "right",
+            rotateValue: 3
+        });
+        //move = true;
+    } else if (y < 50) {
+        move = true;
+        console.log("MOVE " + y + " - " + userID)
     }
     prevX = x;
+
 }
+
 
 ////////////////////////////////////////////////////
 // add new last() method:
