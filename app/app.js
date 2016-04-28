@@ -4,7 +4,13 @@
 var app = {};
 var user = 0;
 var move = false;
-var arrLocation = [];
+var arrLocation = [
+    [],
+    [],
+    [],
+    [],
+    []
+];
 var arrLocation0 = [];
 var arrLocation1 = [];
 var N = 0;
@@ -29,7 +35,7 @@ function add(address, rssi, array) {
         return el.address === address;
     });
     if (!found) {
-        arrLocation.push({
+        arrLocation[array].push({
             [address]: rssi
         });
     }
@@ -211,18 +217,19 @@ app.ui.displayDeviceList = function() {
             );
 
             //var arrLocationN = arrLocation[N];
-            if (readBeacon && arrLocation.length < 4 && N < 4) {
+
+            if (readBeacon && arrLocation[N].length < 4 && N < 4) {
 
                 add(device.address, device.rssi, N);
 
-                $('.beaconNumber').html(obj + JSON.stringify(arrLocation));
+                //$('.beaconNumber').html(obj + JSON.stringify(arrLocation));
                 socket.emit('beaconPositions', {
                     arr: obj
                 });
                 //readBeacon = false;
-            } else if (arrLocation.length >= 3) {
+            } else if (arrLocation[N].length >= 3 && readBeacon) {
                 N++;
-                $('.beaconNumber').html(JSON.stringify(obj));
+                $('.beaconNumber').html(JSON.stringify(arrLocation) + ' -- ' + arrLocation.length + ' -- ' + N + readBeacon);
                 readBeacon = false;
             } else if (readBeacon && N == 4) {
                 $('.beaconNumber').html("Completed");
@@ -231,7 +238,8 @@ app.ui.displayDeviceList = function() {
                 });
                 readBeacon = false;
             } else {
-                $('.beaconNumber').html(obj);
+
+                //$('.beaconNumber').html(obj + "<br/> -- " + arrLocation.length);
 
             }
 
