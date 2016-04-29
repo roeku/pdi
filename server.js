@@ -16,8 +16,8 @@ var io = require('socket.io')(server);
 var KalmanFilter = require('kalmanjs').default;
 
 var kf = new KalmanFilter({
-    R: 1,
-    Q: 10
+    R: 4,
+    Q: 15
 });
 kf.filter(2);
 ///////////////////////////////////////////////
@@ -25,7 +25,9 @@ kf.filter(2);
 var tRarr = [];
 
 var movement = null;
-var bubbleRange = 0.75;
+var bubbleRange = 0.25;
+var playerBubble1 = false,
+    playerBubble2 = false;
 var size = 0;
 var oldDistances = createArray(3, 15);
 var toFilterDataset = createArray(3, 15);
@@ -65,6 +67,13 @@ io.on('connection', function(socket) {
     })
     socket.on('values', function(p) {
         //console.log(p);
+        if (oldDistances[1].last() <= bubbleRange) {
+            playerBubble1 = true;
+            playerBubble2 = false;
+        } else if (oldDistances[2].last() <= bubbleRange) {
+            playerBubble1 = false;
+            playerBubble2 = true;
+        }
         arrayFunction(p.user, p.value);
     });
     socket.on('move', function(mo) {
@@ -83,16 +92,23 @@ io.on('connection', function(socket) {
     });
     socket.on('beaconPositions', function(b) {
         var tArr = b.arr;
-        var max = Object.keys(tArr).reduce(function(a, b) {
-            return tArr[a] > tArr[b] ? a : b
+        console.log(tArr);
+        for (var key of tArr[0])  {
+
+
+            console.log(key['061AC087-8C26-BBD5-1D59-098963A6F549'])
+        }
+        var max = Object.keys(tArr[1]).reduce(function(a, b) {
+            return tArr[1][a] > tArr[1][b] ? a : b
         });
         var b0 = Object.keys(tArr[0][max]);
-
-        for (var key in tArr[1]) {
-            ///  console.log(Object.keys(key));
+        //console.log(max);
+        //console.log(JSON.stringify(tArr[0][max]) + " -- " + JSON.stringify(tArr[1][max]) + " -- " + JSON.stringify(tArr[2][max]));
+        for (var key in tArr) {
+            //  console.log(key + ' -- ' + Object.keys(key));
         }
 
-        console.log(b0 + " " + Object.keys(tArr[1][0]));
+        //console.log(b0 + " " + Object.keys(tArr[1][0]));
     });
     socket.on('rotate', function(r) {
         //console.log(r.user);
@@ -130,8 +146,9 @@ function arrayFunction(userID, newValue) {
         //when the drone is close to both users, shutdown, cuz it should be impossible
         //console.log(gX + " " + gY);
         //when the drone is closer than or equal to 1 to user1 change bool
-        if (oldDistances[1].last() <= bubbleRange && oldDistances[1].last() < oldDistances[2].last()) {
-            console.log('movement 1: ' + movement);
+
+        if (playerBubble1 && oldDistances[1].last() < oldDistances[2].last()) {
+            console.log('movement 1: ' + movement + oldDistances[1].last());
 
             if (movement == "backward") {
                 move = false;
@@ -157,8 +174,8 @@ function arrayFunction(userID, newValue) {
             //console.log(movement);
         }
         //when the drone is closer than or equal to 1 to user2 change bool
-        else if (oldDistances[2].last() <= bubbleRange && oldDistances[1].last() > oldDistances[2].last()) {
-            console.log('movement 2: ' + movement);
+        else if (playerBubble2 && oldDistances[1].last() > oldDistances[2].last()) {
+            //  console.log('movement 2: ' + movement + oldDistances[2].last());
             if (movement == "forward") {
                 move = false;
                 //console.log("FORWARD - 1");
@@ -178,7 +195,7 @@ function arrayFunction(userID, newValue) {
             //console.log(movement);
 
         } else {
-            console.log('NOË');
+            //  console.log(userID + 'Distances to 1: ' + oldDistances[1].last() + ' Distances to 2: ' + oldDistances[2].last());
             // io.sockets.emit('droneMovement', {
             //     movement: movement
             // });
