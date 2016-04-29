@@ -1,9 +1,8 @@
-// JavaScript code for the BLE Scan example app.
-
 // Application object.
 var app = {};
+// User ID
 var user = 0;
-var move = false;
+// Beacon positions
 var arrLocation = [
     [],
     [],
@@ -11,24 +10,17 @@ var arrLocation = [
     [],
     []
 ];
-var arrLocation0 = [];
-var arrLocation1 = [];
 var N = 0;
-var arrPosition = 0;
-var arraPosition = 0;
 var readBeacon = false;
-var obj = [];
+// Phone values
 var prevX = 0;
 var prevY = 0;
 var rotation = false;
 var droneLeft = false;
 var droneRight = false;
 var droneStraight = true;
-var rssiV = 10;
 
-function beacon() {
-    $('.beaconNumber').html(JSON.stringify(data));
-};
+var rssiV = 10;
 
 function add(address, rssi, array) {
     var found = arrLocation.some(function(el) {
@@ -39,17 +31,7 @@ function add(address, rssi, array) {
             [address]: rssi
         });
     }
-    var t0 = arrLocation[0];
-    var t1 = arrLocation[1];
-    var t2 = arrLocation[2];
-    obj = Object.assign(t0, t1, t2);
-
 }
-// Globals.
-var sprite = null
-var shouldVibrate = false
-var blockVibrate = false
-
 
 function initialise() {
     initialiseAccelerometer()
@@ -82,7 +64,6 @@ function accelerometerHandler(accelerationX, accelerationY) {
     y = Math.max(y, 0)
 
     newMovement(x, y)
-        //$('.spriteValue').html(x + " " + y);
 }
 
 function newMovement(x, y) {
@@ -217,30 +198,31 @@ app.ui.displayDeviceList = function() {
             );
 
             //var arrLocationN = arrLocation[N];
+            if (device.name == "EST") {
+                if (readBeacon && arrLocation[N].length < 4 && N < 4) {
 
-            if (readBeacon && arrLocation[N].length < 4 && N < 4) {
+                    add(device.address, device.rssi, N);
 
-                add(device.address, device.rssi, N);
+                    //$('.beaconNumber').html(obj + JSON.stringify(arrLocation));
+                    // socket.emit('beaconPositions', {
+                    //     arr: obj
+                    // });
+                    //readBeacon = false;
+                } else if (arrLocation[N].length >= 3 && readBeacon) {
+                    N++;
+                    $('.beaconNumber').html(JSON.stringify(arrLocation) + ' -- ' + arrLocation.length + ' -- ' + N + readBeacon);
+                    readBeacon = false;
+                } else if (readBeacon && N == 4) {
+                    $('.beaconNumber').html("Completed");
+                    socket.emit('beaconPositions', {
+                        arr: arrLocation
+                    });
+                    readBeacon = false;
+                } else {
 
-                //$('.beaconNumber').html(obj + JSON.stringify(arrLocation));
-                socket.emit('beaconPositions', {
-                    arr: obj
-                });
-                //readBeacon = false;
-            } else if (arrLocation[N].length >= 3 && readBeacon) {
-                N++;
-                $('.beaconNumber').html(JSON.stringify(arrLocation) + ' -- ' + arrLocation.length + ' -- ' + N + readBeacon);
-                readBeacon = false;
-            } else if (readBeacon && N == 4) {
-                $('.beaconNumber').html("Completed");
-                socket.emit('beaconPositions', {
-                    arr: arrLocation
-                });
-                readBeacon = false;
-            } else {
+                    //$('.beaconNumber').html(obj + "<br/> -- " + arrLocation.length);
 
-                //$('.beaconNumber').html(obj + "<br/> -- " + arrLocation.length);
-
+                }
             }
 
             if (device.name == "Mars_141305") {
