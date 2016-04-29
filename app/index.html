@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, user-scalable=no,
+		shrink-to-fit=no, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0" />
+
+    <title>BLE Scan</title>
+
+    <style>
+        @import 'ui/css/evothings-app.css';
+        #sprite {
+            position: absolute;
+            width: 300px;
+            height: auto;
+            top: 0px;
+            left: 0px;
+            z-index: 1000;
+            display: none;
+        }
+    </style>
+
+    <script>
+        // Redirect console.log to Evothings Workbench.
+        if (window.hyper && window.hyper.log) {
+            console.log = hyper.log
+        }
+    </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/1.3.5/socket.io.js"></script>
+
+    <script>
+        var URL_SERVER = 'https://donmezfurkan.com:3000/';
+        var socket = io(URL_SERVER);
+    </script>
+
+    <script src="cordova.js"></script>
+    <script src="libs/jquery/jquery.js"></script>
+    <script src="libs/evothings/evothings.js"></script>
+    <script src="libs/evothings/ui/ui.js"></script>
+    <script src="app.js"></script>
+
+</head>
+
+<body ontouchstart="">
+    <!-- ontouchstart="" enables low-delay CSS transitions. -->
+
+    <!-- <h1>BLE Scan</h1> -->
+
+    <button onclick="app.ui.onStartScanButton()" class="green">
+        START SCAN
+    </button>
+
+    <button onclick="app.ui.onStopScanButton()" class="charcoal">
+        STOP SCAN
+    </button>
+    <br/>
+    <button id="firstPlayer" style="font-size: 2em; "><a>1<a/></button>
+	<button id="secondPlayer" style="font-size: 2em;"><a >2</a></button>
+    <!-- <div style="font-size: 2em;"><a id="undefined">0</a></div> -->
+    <button class="whatuserami" style="font-size: 1.3em; float: right">0</button>
+    <button class="beacon">BEACON</button>
+    <div style="font-size: 0.5em;" class="beaconNumber">--</div>
+    <button id="launch" class="launch">LAUNCH</button>
+    <button id="move">MOVE</button>
+    <button id="stop">STOP</button>
+    <button id="emer" class="emer">EMERGENCY</button>
+
+    <p id="scan-status">Scanning Paused</p>
+    <div class="spriteValue">--</div>
+    <ul id="found-devices" class="dynamic"></ul>
+    <button style="display: none;" onclick="sample.shoot()">Shoot</button>
+    <canvas id="myCanvas" width="300" height="300"></canvas>
+
+    <section id='troubleshooting'>
+
+        <h2>Troubleshooting</h2>
+
+        <p>Sometimes BLE stops working when switching between apps or doing multiple reloads. In this case restart the Evothings Client app. Additionally, you can use the Evothings Workbench Tools to see any error messages that may help in your investigation.</p>
+
+    </section>
+    <script>
+        $('#firstPlayer').click(function() {
+            user = 1;
+            $('.whatuserami').html("1");
+            socket.emit('userchange', {
+                user: user
+            });
+        });
+        $('#secondPlayer').click(function() {
+            user = 2;
+            $('.whatuserami').html("2");
+            socket.emit('userchange', {
+                user: user
+            });
+        });
+
+        $('#undefined').click(function() {
+            user = 0;
+            $('.whatuserami').html("0");
+            socket.emit('userchange', {
+                user: user
+            });
+        });
+
+        $('#move').click(function() {
+            move = true;
+            socket.emit('move', {
+                move: move
+            });
+        });
+        $('#stop').click(function() {
+            move = false;
+            socket.emit('move', {
+                move: move
+            });
+        });
+        $('#launch').click(function() {
+            socket.emit('launch', {
+                launch: true
+            });
+        });
+        $('#emer').click(function() {
+            socket.emit('emer', {
+                emer: true
+            });
+        });
+
+        socket.on('bubble', function(b) {
+            if (b.bubble) {
+                //sample.shoot();
+            }
+        });
+
+        $('.beacon').click(function() {
+            readBeacon = true;
+        });
+    </script>
+    <script src="shared.js"></script>
+    <script src="sound.js"></script>
+    <script>
+        sample = new ProceduralSample();
+    </script>
+</body>
+
+</html>
