@@ -3,7 +3,7 @@ var https = require('https');
 
 var express = require('express');
 var app = express();
-
+var values = require('object.values');
 var options = {
     key: fs.readFileSync('./donmezfurkan.com.key'),
     cert: fs.readFileSync('./donmezf.com.crt')
@@ -16,8 +16,8 @@ var io = require('socket.io')(server);
 var KalmanFilter = require('kalmanjs').default;
 
 var kf = new KalmanFilter({
-    R: 4,
-    Q: 15
+    R: 1,
+    Q: 3
 });
 kf.filter(2);
 ///////////////////////////////////////////////
@@ -25,7 +25,7 @@ kf.filter(2);
 var tRarr = [];
 
 var movement = null;
-var bubbleRange = 0.25;
+var bubbleRange = 0.2;
 var playerBubble1 = false,
     playerBubble2 = false;
 var size = 0;
@@ -39,8 +39,9 @@ var move = false;
 
 // rotation
 var rotation = false;
-var g1X = 0;
-var g1Y = 0;
+var prevAngle = 0;
+var angle1 = 0;
+var angle2 = 0;
 var prevX = 0;
 var g2X = 0;
 var g2Y = 0;
@@ -63,7 +64,11 @@ io.on('connection', function(socket) {
     /////////////////////////////////////////////
     socket.on('userchange', function(u) {
         console.log(u);
+
         console.log(oldDistances);
+        io.sockets.emit('user', {
+            u: u.user
+        })
     })
     socket.on('values', function(p) {
         //console.log(p);
@@ -73,6 +78,9 @@ io.on('connection', function(socket) {
         } else if (oldDistances[2].last() <= bubbleRange) {
             playerBubble1 = false;
             playerBubble2 = true;
+        } else {
+            playerBubble2 = false;
+            playerBubble1 = false;
         }
         arrayFunction(p.user, p.value);
     });
@@ -93,10 +101,12 @@ io.on('connection', function(socket) {
     socket.on('beaconPositions', function(b) {
         var tArr = b.arr;
         console.log(tArr);
+        var smallestValue = -60;
+        var closestKey = "";
         for (var key of tArr[0])  {
 
 
-            console.log(key['061AC087-8C26-BBD5-1D59-098963A6F549'])
+            console.log(key + " -- " + Object.values(key))
         }
         var max = Object.keys(tArr[1]).reduce(function(a, b) {
             return tArr[1][a] > tArr[1][b] ? a : b
@@ -110,14 +120,15 @@ io.on('connection', function(socket) {
 
         //console.log(b0 + " " + Object.keys(tArr[1][0]));
     });
-    socket.on('rotate', function(r) {
-        //console.log(r.user);
-        if (r.user == 1) {
-            g1X = r.x;
-            g1Y = r.y;
-        } else if (r.user == 2) {
-            g2X = r.x;
-            g2Y = r.y;
+
+    socket.on('rotateBitch', function(rot) {
+        console.log('rotateBitch');
+        if (rot.user == 1) {
+            angle1 = rot.angle;
+            //direction(rot.user, angle);
+        } else if (rot.user == 2) {
+            angle2 = rot.angle;
+            //direction(rot.user, angle);
         }
 
     });
@@ -131,7 +142,7 @@ server.listen(serverPort, function() {
 
 
 /////////////////////////////////////////////////
-function arrayFunction(userID, newValue) {
+function arrayFunction(userID, newValue, angle) {
     // everytime you get in this function, shift the old array of userID to make place for the new value
     toFilterDataset[userID].shift();
 
@@ -140,110 +151,94 @@ function arrayFunction(userID, newValue) {
     oldDistances[userID] = toFilterDataset[userID].map(function(v) {
         return kf.filter(v, 1);
     });
-    // when it's not a duplicate value (because it's impossible to receive duplicates with floats, unless somethings wrong)
+    //console.log(oldDistances[1]);
+    io.sockets.emit('value', {
+            movement: userID,
+            value: oldDistances[userID].last()
+        })
+        // when it's not a duplicate value (because it's impossible to receive duplicates with floats, unless somethings wrong)
     if (oldDistance != newValue) {
-        //console.log(userID);
-        //when the drone is close to both users, shutdown, cuz it should be impossible
-        //console.log(gX + " " + gY);
-        //when the drone is closer than or equal to 1 to user1 change bool
+        if (move) {
+            //when the drone is close to both users, shutdown, cuz it should be impossible
+            //when the drone is closer than or equal to 1 to user1 change bool
+            //  console.log("inside move");
+            if (playerBubble1 && oldDistances[1].last() < oldDistances[2].last()) {
+                if (movement == "player2") {
+                    move = false;
+                    console.log("inside player1 stop - " + movement)
+                    direction(userID, angle1);
+                }
+                movement = "player1";
+                //  console.log("inside player1 move - " + movement)
 
-        if (playerBubble1 && oldDistances[1].last() < oldDistances[2].last()) {
-            console.log('movement 1: ' + movement + oldDistances[1].last());
-
-            if (movement == "backward") {
-                move = false;
-                //console.log("BACKWARD - 1");
-
-                //console.log(movement);
-            } else {
-                //  console.log("FORWARD - 2");
-                //move = false;
-            }
-
-            //  console.log('FORWARD EMIT');
-            movement = "forward";
-            if (move) {
                 io.sockets.emit('droneMovement', {
-                    movement: movement,
-                    value: newValue
+                    movement: movement
                 });
-            } else {
-                direction(userID, g1X, g1Y);
-                //console.log("g1X: " + g1X + " g2Y: " + g1Y + " userID: " + userID);
             }
-            //console.log(movement);
-        }
-        //when the drone is closer than or equal to 1 to user2 change bool
-        else if (playerBubble2 && oldDistances[1].last() > oldDistances[2].last()) {
-            //  console.log('movement 2: ' + movement + oldDistances[2].last());
-            if (movement == "forward") {
-                move = false;
-                //console.log("FORWARD - 1");
-            } else {
-                //console.log('BACKWARD - 2');
-                //move = false;
-            }
-            movement = "backward";
-            if (move) {
+            //when the drone is closer than or equal to 1 to user2 change bool
+            else if (playerBubble2 && oldDistances[1].last() > oldDistances[2].last()) {
+                if (movement == "player1") {
+                    move = false;
+                    console.log("inside player2 stop - " + movement)
+                    direction(userID, angle2);
+                }
+                //console.log("inside player2 move - " + movement)
+
+                movement = "player2";
+
                 io.sockets.emit('droneMovement', {
-                    movement: movement,
-                    value: newValue
+                    movement: movement
                 });
-            } else {
-                direction(userID, g2X, g2Y);
             }
-            //console.log(movement);
+            //            console.log("end of move")
+
+            oldDistance = newValue;
+            prevMovement = movement;
 
         } else {
-            //  console.log(userID + 'Distances to 1: ' + oldDistances[1].last() + ' Distances to 2: ' + oldDistances[2].last());
-            // io.sockets.emit('droneMovement', {
-            //     movement: movement
-            // });
-            //console.log(movement);
+            //  console.log("inside else")
+            if (movement == "player1") {
+                direction(userID, angle1);
+            } else if (movement == "player2") {
+                direction(userID, angle2);
+            }
 
         }
-    } else if (!move && prevMovement != "rotation") {
-        //console.log('ROTATION');
-    } else {
-        movement = movement;
     }
-    //  console.log(userID + ": " + oldDistances[userID].last() + " - " + movement);
-    //console.log("1: " + g1X + " 2: " + g2X)
-
-    oldDistance = newValue;
-    prevMovement = movement;
-
 }
 ////////////////////////////////////////////////////
-function direction(userID, x, y) {
-    //movement = "rotation";
-    console.log("x: " + x + " y: " + y + " userID: " + userID);
+function direction(userID, angle) {
+    var r = 3;
+    console.log(angle);
+    var threeSix = 18;
+    if (angle1 != prevAngle &&  angle2 != prevAngle) {
+        if (angle >= 30 && angle <= 180) {
+            console.log('ROTATE ' + angle + " - " + userID + "left");
+            io.sockets.emit('droneMovement', {
+                movement: "rotation",
+                rotateDirection: threeSix + r
+            });
+            move = true;
+        } else if (angle <= 340 && angle > 200) {
+            console.log('ROTATE ' + angle + " - " + userID + "right");
 
-    if (x < 60) {
-        console.log('ROTATE ' + x + " - " + userID);
-        io.sockets.emit('droneMovement', {
-            movement: "rotation",
-            rotateDirection: "left",
-            rotateValue: 3
-        });
-        //move = true;
-    } else if (x > 150) {
-        console.log('ROTATE ' + x + " - " + userID);
+            io.sockets.emit('droneMovement', {
+                movement: "rotation",
+                rotateDirection: threeSix - r
+            });
+            move = true;
+        } else if (angle < 30 || angle > 340) {
+            console.log('ROTATE ' + angle + " - " + userID + "straight");
 
-        io.sockets.emit('droneMovement', {
-            movement: "rotation",
-            rotateDirection: "right",
-            rotateValue: 3
-        });
-        //move = true;
-    } else if (y < 50) {
-        move = true;
-        console.log("MOVE " + y + " - " + userID)
+            io.sockets.emit('droneMovement', {
+                movement: "rotation",
+                rotateDirection: threeSix
+            });
+            move = true;
+        }
     }
-    prevX = x;
-
+    prevAngle = angle;
 }
-
 
 ////////////////////////////////////////////////////
 // add new last() method:
@@ -269,7 +264,7 @@ function createArray(length) {
 // function for conversion into meters (use of the standard values)
 function calculateDistance(rssi) {
 
-    var txPower = -59 //hard coded power value. Usually ranges between -59 to -65
+    var txPower = -58 //hard coded power value. Usually ranges between -59 to -65
 
     if (rssi == 0) {
         return -1.0;
